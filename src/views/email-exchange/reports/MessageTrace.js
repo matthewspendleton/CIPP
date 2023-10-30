@@ -32,13 +32,13 @@ const columns = [
     name: 'Recipient',
     selector: (row) => row['RecipientAddress'],
     sortable: true,
-    exportSelector: 'Recipient',
+    exportSelector: 'RecipientAddress',
   },
   {
     name: 'Sender',
     selector: (row) => row['SenderAddress'],
     sortable: true,
-    exportSelector: 'Sender',
+    exportSelector: 'SenderAddress',
   },
   {
     name: 'Subject',
@@ -95,12 +95,20 @@ const MessageTrace = () => {
             <CCardHeader>
               <CCardTitle className="d-flex justify-content-between">
                 Message Trace Settings
-                <CButton size="sm" variant="ghost" onClick={() => setVisibleA(!visibleA)}>
+                <CButton
+                  size="sm"
+                  variant="ghost"
+                  className="stretched-link"
+                  onClick={() => setVisibleA(!visibleA)}
+                >
                   <FontAwesomeIcon icon={visibleA ? faChevronDown : faChevronRight} />
                 </CButton>
               </CCardTitle>
             </CCardHeader>
-            <CCollapse visible={visibleA}>
+          </CCard>
+          <CCollapse visible={visibleA}>
+            <CCard className="options-card">
+              <CCardHeader></CCardHeader>
               <CCardBody>
                 <Form
                   initialValues={{
@@ -178,25 +186,32 @@ const MessageTrace = () => {
                   }}
                 />
               </CCardBody>
-            </CCollapse>
-          </CCard>
+            </CCard>
+          </CCollapse>
         </CCol>
       </CRow>
       <hr />
       <CippPage title="Message Trace Results" tenantSelector={false}>
         {!SearchNow && <span>Execute a search to get started.</span>}
         {SearchNow && (
-          <CippDatatable
-            reportName={`${tenant?.defaultDomainName}-Messagetrace`}
-            path="/api/listMessagetrace"
-            params={{
-              tenantFilter: tenant.defaultDomainName,
-              sender: sender,
-              recipient: recipient,
-              days: days,
-            }}
-            columns={columns}
-          />
+          <CCard className="content-card">
+            <CCardHeader className="d-flex justify-content-between align-items-center">
+              <CCardTitle>Results</CCardTitle>
+            </CCardHeader>
+            <CCardBody>
+              <CippDatatable
+                reportName={`${tenant?.defaultDomainName}-Messagetrace`}
+                path="/api/listMessagetrace"
+                params={{
+                  tenantFilter: tenant.defaultDomainName,
+                  sender: sender,
+                  recipient: recipient,
+                  days: days,
+                }}
+                columns={columns}
+              />
+            </CCardBody>
+          </CCard>
         )}
       </CippPage>
     </>

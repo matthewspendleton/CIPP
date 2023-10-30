@@ -1,4 +1,5 @@
 import {
+  CButton,
   CFormCheck,
   CFormFeedback,
   CFormInput,
@@ -6,12 +7,17 @@ import {
   CFormSelect,
   CFormSwitch,
   CFormTextarea,
+  CSpinner,
+  CTooltip,
 } from '@coreui/react'
-import SelectSearch, { fuzzySearch } from 'react-select-search'
+import Select from 'react-select'
+import AsyncSelect from 'react-select/async'
 import { Field } from 'react-final-form'
+import { FieldArray } from 'react-final-form-arrays'
 import React from 'react'
 import PropTypes from 'prop-types'
-import classNames from 'classnames'
+import { useRef } from 'react'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 
 /*
   wrapper classes for React Final Form with CoreUI
@@ -73,22 +79,45 @@ RFFCFormCheck.propTypes = {
   ...sharedPropTypes,
 }
 
-export const RFFCFormSwitch = ({ name, label, className = 'mb-3', validate, disabled = false }) => {
+function ConditionWrapper({ condition, wrapper, children }) {
+  return condition ? wrapper(children) : children
+}
+
+export const RFFCFormSwitch = ({
+  name,
+  label,
+  helpText,
+  sublabel,
+  className = 'mb-3',
+  validate,
+  disabled = false,
+  initialValue,
+}) => {
   return (
-    <Field name={name} type="checkbox" validate={validate}>
+    <Field initialValue={initialValue} name={name} type="checkbox" validate={validate}>
       {({ meta, input }) => (
-        <div className={className}>
-          <CFormSwitch
-            {...input}
-            // @todo revisit this, only shows green when checked
-            valid={!meta.error && meta.touched && validate}
-            invalid={meta.error && meta.touched && validate}
-            disabled={disabled}
-            id={name}
-            label={label}
-          />
-          {input.value && <RFFCFormFeedback meta={meta} />}
-        </div>
+        <ConditionWrapper
+          condition={helpText}
+          wrapper={(children) => (
+            <CTooltip placement="left" content={helpText}>
+              {children}
+            </CTooltip>
+          )}
+        >
+          <div className={className}>
+            <CFormSwitch
+              {...input}
+              // @todo revisit this, only shows green when checked
+              valid={!meta.error && meta.touched && validate}
+              invalid={meta.error && meta.touched && validate}
+              disabled={disabled}
+              id={name}
+              label={label}
+            />
+            {input.value && <RFFCFormFeedback meta={meta} />}
+            <sub>{sublabel}</sub>
+          </div>
+        </ConditionWrapper>
       )}
     </Field>
   )
@@ -96,6 +125,7 @@ export const RFFCFormSwitch = ({ name, label, className = 'mb-3', validate, disa
 
 RFFCFormSwitch.propTypes = {
   ...sharedPropTypes,
+  helpText: PropTypes.string,
 }
 
 export const RFFCFormInput = ({
@@ -138,6 +168,59 @@ RFFCFormInput.propTypes = {
   ...sharedPropTypes,
   type: PropTypes.oneOf(['color', 'file', 'text', 'password']),
   placeholder: PropTypes.string,
+}
+
+export const RFFCFormInputArray = ({ name, label, className = 'mb-3' }) => {
+  return (
+    <>
+      <FieldArray name={name}>
+        {({ fields }) => (
+          <div>
+            <div className="mb-2">
+              {label && (
+                <CFormLabel className="me-2" htmlFor={name}>
+                  {label}
+                </CFormLabel>
+              )}
+              <CButton
+                onClick={() => fields.push({ Key: '', Value: '' })}
+                className="circular-button"
+                title={'+'}
+              >
+                <FontAwesomeIcon icon={'plus'} />
+              </CButton>
+            </div>
+            {fields.map((name, index) => (
+              <div key={name} className={className}>
+                <div>
+                  <Field name={`${name}.Key`} component="input">
+                    {({ input, meta }) => {
+                      return <CFormInput placeholder="Key" {...input} className="mb-2" />
+                    }}
+                  </Field>
+                  <Field name={`${name}.Value`} component="input">
+                    {({ input, meta }) => {
+                      return <CFormInput placeholder="Value" {...input} className="mb-2" />
+                    }}
+                  </Field>
+                </div>
+                <CButton
+                  onClick={() => fields.remove(index)}
+                  className={`circular-button`}
+                  title={'-'}
+                >
+                  <FontAwesomeIcon icon={'minus'} />
+                </CButton>
+              </div>
+            ))}
+          </div>
+        )}
+      </FieldArray>
+    </>
+  )
+}
+RFFCFormInputArray.propTypes = {
+  ...sharedPropTypes,
 }
 
 export const RFFCFormRadio = ({
@@ -259,11 +342,25 @@ RFFCFormSelect.propTypes = {
   values: PropTypes.arrayOf(PropTypes.shape({ label: PropTypes.string, value: PropTypes.any })),
 }
 
-export function Condition({ when, is, children }) {
+export function Condition({ when, is, children, like, regex }) {
   return (
-    <Field name={when} subscription={{ value: true }}>
-      {({ input: { value } }) => (value === is ? children : null)}
-    </Field>
+    <>
+      {is && (
+        <Field name={when} subscription={{ value: true }}>
+          {({ input: { value } }) => (value === is ? children : null)}
+        </Field>
+      )}
+      {like && (
+        <Field name={when} subscription={{ value: true }}>
+          {({ input: { value } }) => (value.includes(like) ? children : null)}
+        </Field>
+      )}
+      {regex && (
+        <Field name={when} subscription={{ value: true }}>
+          {({ input: { value } }) => (value.match(regex) ? children : null)}
+        </Field>
+      )}
+    </>
   )
 }
 
@@ -273,22 +370,6 @@ Condition.propTypes = {
   children: PropTypes.oneOfType([PropTypes.arrayOf(PropTypes.node), PropTypes.node]),
 }
 
-const RFFSelectSearchClasses = {
-  container: 'form-select is-valid',
-  value: 'select-search__value',
-  input: 'select-search__input form-select',
-  select: 'select-search__select',
-  row: 'select-search__row',
-  options: 'select-search__options',
-  option: 'select-search__option',
-  group: 'select-search__group',
-  'group-header': 'select-search__group-header',
-  'is-selected': 'select-search.is-selected',
-  'is-highlighted': 'select-search.is-highlighted',
-  'is-loading': 'select-search.is-loading',
-  'has-focus': 'select-search.has-focus',
-}
-
 export const RFFSelectSearch = ({
   name,
   label,
@@ -296,39 +377,49 @@ export const RFFSelectSearch = ({
   placeholder,
   validate,
   onChange,
+  multi,
   disabled = false,
 }) => {
+  const selectSearchvalues = values.map((val) => ({
+    value: val.value,
+    label: val.name,
+  }))
+
   return (
     <Field name={name} validate={validate}>
       {({ meta, input }) => {
         return (
           <div>
             <CFormLabel htmlFor={name}>{label}</CFormLabel>
-            <SelectSearch
-              {...input}
-              valid={!meta.error && meta.touched}
-              invalid={meta.error && meta.touched}
-              search
-              name={name}
-              id={name}
-              // @todo fix this override so the styling is the same as coreui or override render?
-              className={(key) => {
-                if (key === 'container') {
-                  return classNames('form-select', {
-                    'is-valid': !meta.error && meta.touched,
-                    'is-invalid': meta.error && meta.touched,
-                  })
-                }
-                return RFFSelectSearchClasses[key]
-              }}
-              disabled={disabled}
-              options={values}
-              filterOptions={fuzzySearch}
-              value={input.value}
-              //commented out this on change, because even when it was not set it was using the value, causing issues with the event.
-              onChange={input.onChange}
-              placeholder={placeholder}
-            />
+            {onChange && (
+              <Select
+                className="react-select-container"
+                classNamePrefix="react-select"
+                {...input}
+                isClearable={false}
+                name={name}
+                id={name}
+                disabled={disabled}
+                options={selectSearchvalues}
+                placeholder={placeholder}
+                isMulti={multi}
+                onChange={onChange}
+              />
+            )}
+            {!onChange && (
+              <Select
+                className="react-select-container"
+                classNamePrefix="react-select"
+                {...input}
+                isClearable={true}
+                name={name}
+                id={name}
+                disabled={disabled}
+                options={selectSearchvalues}
+                placeholder={placeholder}
+                isMulti={multi}
+              />
+            )}
             <RFFCFormFeedback meta={meta} />
           </div>
         )
@@ -339,6 +430,7 @@ export const RFFSelectSearch = ({
 
 RFFSelectSearch.propTypes = {
   ...sharedPropTypes,
+  multi: PropTypes.bool,
   placeholder: PropTypes.string,
   values: PropTypes.arrayOf(PropTypes.shape({ value: PropTypes.string, name: PropTypes.string }))
     .isRequired,

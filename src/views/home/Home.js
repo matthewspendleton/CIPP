@@ -1,114 +1,368 @@
-import React from 'react'
-import { faBook } from '@fortawesome/free-solid-svg-icons'
-import { CButton, CSpinner } from '@coreui/react'
-import { useLoadDashQuery, useLoadVersionsQuery } from 'src/store/api/app'
-import { StatusIcon } from 'src/components/utilities'
-import { CippContentCard, CippMasonry, CippMasonryItem } from 'src/components/layout'
-import { CippTable } from 'src/components/tables'
-import { Link } from 'react-router-dom'
+import React, { useState } from 'react'
+import {
+  faBook,
+  faCog,
+  faEllipsisH,
+  faHotel,
+  faLaptopCode,
+  faMailBulk,
+  faSearch,
+  faShieldAlt,
+  faSync,
+  faUser,
+  faUserAlt,
+  faUserFriends,
+  faUserPlus,
+  faUsers,
+  faServer,
+} from '@fortawesome/free-solid-svg-icons'
+import { CButton, CCol, CCollapse, CRow } from '@coreui/react'
+import { useGenericGetRequestQuery } from 'src/store/api/app'
+import { CippContentCard } from 'src/components/layout'
+import Skeleton from 'react-loading-skeleton'
+import { UniversalSearch } from 'src/components/utilities/UniversalSearch'
+import { ActionContentCard } from 'src/components/contentcards'
+import { useSelector } from 'react-redux'
+import allStandardsList from 'src/data/standards'
+import ReactTimeAgo from 'react-time-ago'
+import { CellDelegatedPrivilege } from 'src/components/tables/CellDelegatedPrivilege'
+import Portals from 'src/data/portals'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { Link } from 'react-router-dom'
 
 const Home = () => {
-  const { data: versions, isLoading, isSuccess: isSuccessVersion } = useLoadVersionsQuery()
-  const { data: dashboard, isLoading: isLoadingDash, isSuccess: issuccessDash } = useLoadDashQuery()
-  const tableColumns = [
+  const [visible, setVisible] = useState(false)
+
+  const currentTenant = useSelector((state) => state.app.currentTenant)
+  const {
+    data: organization,
+    isLoading: isLoadingOrg,
+    isSuccess: issuccessOrg,
+    isFetching: isFetchingOrg,
+  } = useGenericGetRequestQuery({
+    path: '/api/ListOrg',
+    params: { tenantFilter: currentTenant.defaultDomainName },
+  })
+
+  const {
+    data: dashboard,
+    isLoading: isLoadingUserCounts,
+    isSuccess: issuccessUserCounts,
+    isFetching: isFetchingUserCount,
+  } = useGenericGetRequestQuery({
+    path: '/api/ListuserCounts',
+    params: { tenantFilter: currentTenant.defaultDomainName },
+  })
+
+  const {
+    data: sharepoint,
+    isLoading: isLoadingSPQuota,
+    isSuccess: issuccessSPQuota,
+    isFetching: isFetchingSPQuota,
+  } = useGenericGetRequestQuery({
+    path: '/api/ListSharepointQuota',
+    params: { tenantFilter: currentTenant.defaultDomainName },
+  })
+
+  const {
+    data: standards = [],
+    isLoading: isLoadingStandards,
+    isSuccess: issuccessStandards,
+    isFetching: isFetchingStandards,
+  } = useGenericGetRequestQuery({
+    path: '/api/ListStandards',
+    params: {},
+  })
+
+  const {
+    data: partners,
+    isLoading: isLoadingPartners,
+    isSuccess: issuccessPartners,
+    isFetching: isFetchingPartners,
+  } = useGenericGetRequestQuery({
+    path: '/api/ListGraphRequest',
+    params: {
+      Endpoint: 'policies/crossTenantAccessPolicy/partners',
+      tenantFilter: currentTenant.defaultDomainName,
+      ReverseTenantLookup: true,
+    },
+  })
+
+  const actions1 = Portals.map((portal) => ({
+    icon: portal.icon,
+    label: portal.label,
+    target: '_blank',
+    link: portal.url.replace(portal.variable, currentTenant[portal.variable]),
+  }))
+
+  const actions2 = [
     {
-      name: 'Tenant',
-      selector: (row) => row['Tenant'],
-      sortable: true,
+      label: 'Edit Tenant',
+      link: `/tenant/administration/tenants/Edit?customerId=${currentTenant.customerId}&tenantFilter=${currentTenant.defaultDomainName}`,
+      icon: faCog,
     },
     {
-      name: 'Message',
-      selector: (row) => row['Message'],
-      sortable: true,
+      label: 'List Users',
+      link: `/identity/administration/users?customerId=${currentTenant.customerId}`,
+      icon: faUser,
+    },
+    {
+      label: 'List Groups',
+      link: `/identity/administration/groups?customerId=${currentTenant.customerId}`,
+      icon: faUsers,
+    },
+    {
+      label: 'List Devices',
+      link: `/endpoint/reports/devices?customerId=${currentTenant.customerId}`,
+      icon: faLaptopCode,
+    },
+    {
+      label: 'Create User',
+      link: `/identity/administration/users/add?customerId=${currentTenant.customerId}`,
+      icon: faUserPlus,
+    },
+    {
+      label: 'Create Group',
+      link: `/identity/administration/groups/add?customerId=${currentTenant.customerId}`,
+      icon: faUserFriends,
     },
   ]
-  return (
-    <CippMasonry columns={4}>
-      {issuccessDash && (
-        <>
-          <CippMasonryItem size="card">
-            <CippContentCard title="Next Run Standards" icon={faBook}>
-              <div>{!isLoadingDash ? dashboard.NextStandardsRun : <CSpinner size="sm" />}</div>
-            </CippContentCard>
-          </CippMasonryItem>
-          <CippMasonryItem size="card">
-            <CippContentCard title="Next Run BPA" icon={faBook}>
-              <div>{!isLoadingDash ? dashboard.NextBPARun : <CSpinner size="sm" />}</div>
-            </CippContentCard>
-          </CippMasonryItem>
-          <CippMasonryItem size="card">
-            <CippContentCard title="Queued Applications" icon={faBook}>
-              <div>{!isLoadingDash ? dashboard.queuedApps : <CSpinner size="sm" />}</div>
-            </CippContentCard>
-          </CippMasonryItem>
-          <CippMasonryItem size="card">
-            <CippContentCard title="Queued Standards" icon={faBook}>
-              <div> {!isLoadingDash ? dashboard.queuedStandards : <CSpinner size="sm" />}</div>
-            </CippContentCard>
-          </CippMasonryItem>
-          <CippMasonryItem size="card">
-            <CippContentCard title="Managed Tenants" icon={faBook}>
-              <div>{!isLoadingDash ? dashboard.tenantCount : <CSpinner size="sm" />}</div>
-              <br></br> Managed tenants
-            </CippContentCard>
-          </CippMasonryItem>
-          <CippMasonryItem size="card">
-            <CippContentCard title="Token refresh dates" icon={faBook}>
-              <div>
-                Refresh token:{' '}
-                {!isLoadingDash ? dashboard.RefreshTokenDate : <CSpinner size="sm" />}
-              </div>
-              <br></br>
 
-              <div>
-                Exchange Token:{' '}
-                {!isLoadingDash ? dashboard.ExchangeTokenDate : <CSpinner size="sm" />}
-              </div>
-            </CippContentCard>
-          </CippMasonryItem>
-        </>
-      )}{' '}
-      {isSuccessVersion && (
+  const filteredStandards = standards
+    .filter(
+      (p) => p.displayName === 'AllTenants' || p.displayName === currentTenant.defaultDomainName,
+    )
+    .flatMap((tenant) => {
+      return Object.keys(tenant.standards).map((standard) => {
+        const standardDisplayname = allStandardsList.filter((p) => p.name.includes(standard))
+        return (
+          <li key={`${standard}-${tenant.displayName}`}>
+            {standardDisplayname[0]?.label} ({tenant.displayName})
+          </li>
+        )
+      })
+    })
+  return (
+    <>
+      <CRow className="mb-3">
+        <CCol>
+          <CippContentCard className="h-100" title="Lighthouse Search" icon={faSearch}>
+            <CRow className="mb-3"></CRow>
+            <CRow className="mb-3">
+              <CCol>
+                <UniversalSearch />
+              </CCol>
+            </CRow>
+          </CippContentCard>
+        </CCol>
+      </CRow>
+      {currentTenant?.customerId !== 'AllTenants' ? (
         <>
-          <CippMasonryItem size="card">
-            <CippContentCard title="Version Frontend" icon={faBook}>
-              <StatusIcon type="negatedboolean" status={versions.OutOfDateCIPP} />
-              <div>Latest: {!isLoading ? versions.RemoteCIPPVersion : <CSpinner size="sm" />}</div>
-              <div>Current: {!isLoading ? versions.LocalCIPPVersion : <CSpinner size="sm" />}</div>
-            </CippContentCard>
-          </CippMasonryItem>
-          <CippMasonryItem size="card">
-            <CippContentCard title="Version Backend" icon={faBook}>
-              <StatusIcon type="negatedboolean" status={versions.OutOfDateCIPPAPI} />
-              <div>
-                Latest: {!isLoading ? versions.RemoteCIPPAPIVersion : <CSpinner size="sm" />}
-              </div>
-              <div>
-                Current: {!isLoading ? versions.LocalCIPPAPIVersion : <CSpinner size="sm" />}
-              </div>
-            </CippContentCard>
-          </CippMasonryItem>
+          <CRow>
+            <CCol sm={12} md={6} xl={3} className="mb-3">
+              <CippContentCard title="Total Users" icon={faUsers}>
+                <Link
+                  to={'/identity/administration/users?customerId=' + currentTenant.customerId}
+                  className="stretched-link"
+                />
+                <div>
+                  {issuccessUserCounts && !isFetchingUserCount ? dashboard?.Users : <Skeleton />}
+                </div>
+              </CippContentCard>
+            </CCol>
+            <CCol sm={12} md={6} xl={3} className="mb-3">
+              <CippContentCard title="Total Licensed users" icon={faUsers}>
+                <Link
+                  to={
+                    '/identity/administration/users?customerId=' +
+                    currentTenant.customerId +
+                    '&tableFilter=Graph%3A+assignedLicenses%2F%24count+ne+0'
+                  }
+                  className="stretched-link"
+                />
+                <div>
+                  {issuccessUserCounts && !isFetchingUserCount ? dashboard?.LicUsers : <Skeleton />}
+                </div>
+              </CippContentCard>
+            </CCol>
+            <CCol sm={12} md={6} xl={3} className="mb-3">
+              <CippContentCard title="Global Admin Users" icon={faLaptopCode}>
+                <a
+                  href={`https://entra.microsoft.com/${currentTenant.customerId}/#view/Microsoft_AAD_IAM/RoleMenuBlade/~/RoleMembers/objectId/62e90394-69f5-4237-9190-012177145e10/roleName/Global%20Administrator/roleTemplateId/62e90394-69f5-4237-9190-012177145e10/adminUnitObjectId//customRole~/false/resourceScope/%2F?culture=en-us&country=us`}
+                  className="stretched-link"
+                  target="_blank"
+                />
+                <div>
+                  {issuccessUserCounts && !isFetchingUserCount ? dashboard?.Gas : <Skeleton />}
+                </div>
+              </CippContentCard>
+            </CCol>
+            <CCol sm={12} md={6} xl={3} className="mb-3">
+              <CippContentCard title="Total Guests" icon={faHotel}>
+                <Link
+                  to={
+                    '/identity/administration/users?customerId=' +
+                    currentTenant.customerId +
+                    '&tableFilter=Graph%3A+usertype+eq+%27guest%27'
+                  }
+                  className="stretched-link"
+                />
+                <div>
+                  {issuccessUserCounts && !isFetchingUserCount ? dashboard?.Guests : <Skeleton />}
+                </div>
+              </CippContentCard>
+            </CCol>
+          </CRow>
+          <CRow className="mb-3">
+            <CCol>
+              <CippContentCard title="Current Tenant" icon={faBook}>
+                <CRow>
+                  <CCol sm={12} md={4} className="mb-3">
+                    <p className="fw-lighter">Tenant Name</p>
+                    {currentTenant?.displayName}
+                  </CCol>
+                  <CCol sm={12} md={4} className="mb-3">
+                    <p className="fw-lighter">Tenant ID</p>
+                    {currentTenant?.customerId}
+                  </CCol>
+                  <CCol sm={12} md={4} className="mb-3">
+                    <p className="fw-lighter">Default Domain Name</p>
+                    {currentTenant?.defaultDomainName}
+                  </CCol>
+                </CRow>
+                <CRow>
+                  <CCol sm={12} md={4} className="mb-3">
+                    <p className="fw-lighter">Tenant Status</p>
+                    <CellDelegatedPrivilege cell={currentTenant?.delegatedPrivilegeStatus} />
+                  </CCol>
+                  <CCol sm={12} md={4} className="mb-3">
+                    <p className="fw-lighter">Creation Date</p>
+                    {(isLoadingOrg || isFetchingOrg) && <Skeleton />}
+                    {organization && !isFetchingOrg && organization?.createdDateTime}
+                  </CCol>
+                  <CCol sm={12} md={4} className="mb-3">
+                    <p className="fw-lighter">AD Connect Status</p>
+                    {(isLoadingOrg || isFetchingOrg) && <Skeleton />}
+                    {!isLoadingOrg && !isFetchingOrg && organization?.onPremisesSyncEnabled ? (
+                      <>
+                        <li>
+                          <span class="me-1">Directory Sync:</span>
+                          {organization?.onPremisesLastSyncDateTime ? (
+                            <ReactTimeAgo date={organization?.onPremisesLastSyncDateTime} />
+                          ) : (
+                            'Never'
+                          )}
+                        </li>
+                        <li>
+                          <span class="me-1">Password Sync:</span>
+                          {organization?.onPremisesLastPasswordSyncDateTime ? (
+                            <ReactTimeAgo date={organization?.onPremisesLastPasswordSyncDateTime} />
+                          ) : (
+                            'Never'
+                          )}
+                        </li>
+                      </>
+                    ) : (
+                      'Disabled'
+                    )}
+                  </CCol>
+                </CRow>
+                <CRow>
+                  <CCol sm={12} md={4} className="mb-3">
+                    <p className="fw-lighter">Domain(s)</p>
+                    {(isLoadingOrg || isFetchingOrg) && <Skeleton />}
+                    {!isFetchingOrg &&
+                      issuccessOrg &&
+                      organization?.verifiedDomains?.map((item) => <li>{item.name}</li>)}
+                  </CCol>
+                  <CCol sm={12} md={4} className="mb-3">
+                    <p className="fw-lighter">Capabilities</p>
+                    {(isLoadingOrg || isFetchingOrg) && <Skeleton />}
+                    {!isFetchingOrg &&
+                      issuccessOrg &&
+                      organization?.assignedPlans
+                        ?.filter((p) => p.capabilityStatus == 'Enabled')
+                        .reduce((plan, curr) => {
+                          if (!plan.includes(curr.service)) {
+                            plan.push(curr.service)
+                          }
+                          return plan
+                        }, [])
+                        .map((plan) => (
+                          <>
+                            {plan == 'exchange' && <li>Exchange</li>}
+                            {plan == 'AADPremiumService' && <li>AAD Premium</li>}
+                            {plan == 'WindowsDefenderATP' && <li>Windows Defender</li>}
+                          </>
+                        ))}
+                  </CCol>
+                  <CCol sm={12} md={4} className="mb-3">
+                    <p className="fw-lighter">Sharepoint Quota</p>
+                    {(isLoadingSPQuota || isFetchingSPQuota) && <Skeleton />}
+                    {sharepoint && !isFetchingSPQuota && sharepoint?.Dashboard}
+                  </CCol>
+                  <CCol sm={12} md={4} className="mb-3">
+                    <p className="fw-lighter">Applied Standards</p>
+                    {(isLoadingStandards || isFetchingStandards) && <Skeleton />}
+
+                    {issuccessStandards && !isFetchingStandards && (
+                      <>
+                        {filteredStandards.slice(0, 5)}
+
+                        {filteredStandards.length > 5 && (
+                          <>
+                            <CCollapse visible={visible}>{filteredStandards.slice(5)}</CCollapse>
+                            <CButton
+                              size="sm"
+                              className="mb-3"
+                              onClick={() => setVisible(!visible)}
+                            >
+                              {visible ? 'See less' : 'See more...'}
+                            </CButton>
+                          </>
+                        )}
+                      </>
+                    )}
+                  </CCol>
+                  <CCol sm={12} md={4} className="mb-3">
+                    <p className="fw-lighter">Partner Relationships</p>
+                    {(isLoadingPartners || isFetchingPartners) && <Skeleton />}
+                    {issuccessPartners &&
+                      !isFetchingPartners &&
+                      partners?.Results.map((partner) => {
+                        if (partner.TenantInfo) {
+                          return (
+                            <li key={`${partner.tenantId}`}>
+                              {partner.TenantInfo.displayName} (
+                              {partner.TenantInfo.defaultDomainName})
+                            </li>
+                          )
+                        }
+                      })}
+                  </CCol>
+                </CRow>
+              </CippContentCard>
+            </CCol>
+          </CRow>
+          <CRow className="mb-3">
+            <CCol className="mb-3">
+              <ActionContentCard title="Portals" icon={faEllipsisH} content={actions1} />
+            </CCol>
+            <CCol className="mb-3">
+              <ActionContentCard title="CIPP Actions" icon={faEllipsisH} content={actions2} />
+            </CCol>
+          </CRow>
         </>
+      ) : (
+        <CRow className="mb-3">
+          <CCol sm={12}>
+            <CippContentCard title="All Tenants" icon={faBook}>
+              Select a Tenant to show the dashboard
+            </CippContentCard>
+          </CCol>
+        </CRow>
       )}
-      <CippMasonryItem size="half">
-        <CippContentCard title="Last logged items" icon={faBook}>
-          {!isLoadingDash && issuccessDash && (
-            <CippTable
-              reportName="none"
-              tableProps={{ subheader: false }}
-              data={dashboard.LastLog}
-              columns={tableColumns}
-            />
-          )}
-          <Link to="/cipp/logs">
-            <CButton className="m-1" color="primary">
-              <FontAwesomeIcon icon={faBook} className="pe-1" /> Jump to log
-            </CButton>
-          </Link>
-        </CippContentCard>
-      </CippMasonryItem>
-    </CippMasonry>
+    </>
   )
 }
 
